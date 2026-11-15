@@ -70,16 +70,13 @@ function Index() {
   return (
     <main className="min-h-screen bg-black text-foreground font-sans py-6 sm:py-12 px-3 sm:px-6 flex justify-center items-start">
       <div className="relative w-full max-w-4xl bg-[#0c0c0c] border border-primary/30 rounded-2xl shadow-2xl p-6 sm:p-10 md:p-14 overflow-hidden">
-        {/* Subtle inner border for classic menu card aesthetic */}
         <div className="pointer-events-none absolute inset-2 sm:inset-3 rounded-xl border border-primary/20" />
 
-        {/* Vintage corner flourishes */}
         <div className="pointer-events-none absolute top-4 left-4 h-4 w-4 border-t-2 border-l-2 border-primary/60" />
         <div className="pointer-events-none absolute top-4 right-4 h-4 w-4 border-t-2 border-r-2 border-primary/60" />
         <div className="pointer-events-none absolute bottom-4 left-4 h-4 w-4 border-b-2 border-l-2 border-primary/60" />
         <div className="pointer-events-none absolute bottom-4 right-4 h-4 w-4 border-b-2 border-r-2 border-primary/60" />
 
-        {/* Menu Card Header */}
         <header className="relative text-center pb-8 pt-2">
           <div className="text-primary/70 text-xs tracking-[0.3em] uppercase mb-2">
             ★ Craft Burgers &amp; Cocktails ★
@@ -97,7 +94,6 @@ function Index() {
           </p>
         </header>
 
-        {/* Menu Categories */}
         {categories.length === 0 ? (
           <div className="py-20 text-center text-muted-foreground">
             <p className="text-lg">Our kitchen is preparing the menu.</p>
@@ -115,7 +111,6 @@ function Index() {
               const categoryItems = data.filter((i: MenuItem) => i.category === cat);
               return (
                 <section key={cat} className="relative">
-                  {/* Category Title with flanking decorative lines */}
                   <div className="flex items-center justify-center gap-4 mb-6">
                     <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/30 to-primary/60" />
                     <h2 className="font-display text-3xl sm:text-4xl md:text-5xl tracking-widest text-primary uppercase px-3">
@@ -124,7 +119,6 @@ function Index() {
                     <div className="h-px flex-1 bg-gradient-to-l from-transparent via-primary/30 to-primary/60" />
                   </div>
 
-                  {/* Menu Items List */}
                   <div className="grid gap-3 sm:gap-4">
                     {categoryItems.map((item: MenuItem) => {
                       const priceFormatted = formatPrice(item.price, settings);
@@ -157,7 +151,6 @@ function Index() {
           </div>
         )}
 
-        {/* Menu Card Footer */}
         <footer className="mt-16 pt-8 border-t border-primary/20 text-center space-y-2">
           <p className="text-xs uppercase tracking-widest text-muted-foreground">
             All dishes freshly crafted to order

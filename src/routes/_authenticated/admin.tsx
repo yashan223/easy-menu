@@ -16,6 +16,8 @@ import {
   Search,
   X,
   FolderPlus,
+  Menu,
+  ShieldCheck,
 } from "lucide-react";
 import { createServerFn } from "@tanstack/react-start";
 import { sql, type MenuItem } from "@/db";
@@ -104,6 +106,7 @@ function Admin() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategoryTab, setSelectedCategoryTab] = useState("All");
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
@@ -256,9 +259,10 @@ function Admin() {
   const allCategories = useMemo(() => categoriesQuery.data ?? [], [categoriesQuery.data]);
   const categoryNames = useMemo(() => allCategories.map((c: Category) => c.name), [allCategories]);
 
-  // If currently selected form category is not in list, default to first available
-  const availableCategories =
-    categoryNames.length > 0 ? categoryNames : ["Burgers", "Sides", "Cocktails"];
+  const availableCategories = useMemo(
+    () => (categoryNames.length > 0 ? categoryNames : ["Burgers", "Sides", "Cocktails"]),
+    [categoryNames],
+  );
 
   const filteredItems = useMemo(() => {
     return allItems.filter((item) => {
@@ -272,79 +276,199 @@ function Admin() {
     });
   }, [allItems, selectedCategoryTab, searchQuery]);
 
-  return (
-    <main className="min-h-screen bg-background font-sans text-foreground pb-16">
-      {/* Top Navigation Bar */}
-      <header className="sticky top-0 z-40 border-b border-border/80 bg-background/90 backdrop-blur-md px-4 sm:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 border border-primary/20 text-primary">
+  const sidebarContent = (
+    <div className="flex flex-col justify-between h-full">
+      <div className="space-y-6">
+        <div className="flex items-center gap-3 px-2 py-2">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 border border-primary/20 text-primary flex-shrink-0">
             <UtensilsCrossed className="h-5 w-5" />
           </div>
-          <div>
-            <h1 className="font-display text-2xl sm:text-3xl tracking-wide text-primary leading-none">
+          <div className="min-w-0">
+            <h1 className="font-display text-2xl tracking-wide text-primary leading-none truncate">
               SMASH &amp; SHAKE
             </h1>
-            <p className="text-xs text-muted-foreground tracking-wider uppercase">Menu Dashboard</p>
+            <p className="text-[10px] text-muted-foreground tracking-widest uppercase mt-1">
+              Admin Dashboard
+            </p>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" asChild className="gap-1.5 text-xs">
-            <Link to="/">
-              <ExternalLink className="h-3.5 w-3.5" />
-              Live Menu
-            </Link>
-          </Button>
+        <nav className="space-y-1">
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-3 mb-2">
+            Menu Navigation
+          </p>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowCategoriesModal(true)}
-            className="gap-1.5 text-xs"
+          <button
+            type="button"
+            className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold bg-primary/15 text-primary border border-primary/25 transition-colors text-left"
           >
-            <Tag className="h-3.5 w-3.5 text-secondary" />
-            Categories ({availableCategories.length})
-          </Button>
+            <div className="flex items-center gap-3">
+              <UtensilsCrossed className="h-4 w-4" />
+              <span>Menu Items</span>
+            </div>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-primary/20 text-primary font-mono font-bold">
+              {allItems.length}
+            </span>
+          </button>
 
-          <Button
-            variant="outline"
-            size="sm"
+          <button
+            type="button"
+            onClick={() => {
+              setShowCategoriesModal(true);
+              setMobileSidebarOpen(false);
+            }}
+            className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-card/70 transition-colors text-left"
+          >
+            <div className="flex items-center gap-3">
+              <Tag className="h-4 w-4 text-secondary" />
+              <span>Categories</span>
+            </div>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-mono">
+              {availableCategories.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => {
               if (settingsQuery.data?.currency) {
                 setSelectedCurrency(settingsQuery.data.currency);
               }
               setShowCurrencyModal(true);
+              setMobileSidebarOpen(false);
             }}
-            className="gap-1.5 text-xs"
+            className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-card/70 transition-colors text-left"
           >
-            <Coins className="h-3.5 w-3.5 text-primary" />
-            Currency ({settingsQuery.data?.currency ?? "LKR"})
-          </Button>
+            <div className="flex items-center gap-3">
+              <Coins className="h-4 w-4 text-primary" />
+              <span>Currency</span>
+            </div>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-mono font-semibold">
+              {settingsQuery.data?.currency ?? "LKR"}
+            </span>
+          </button>
+
+          <Link
+            to="/"
+            target="_blank"
+            className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-card/70 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <ExternalLink className="h-4 w-4" />
+              <span>View Live Menu</span>
+            </div>
+          </Link>
+        </nav>
+      </div>
+
+      <div className="pt-6 border-t border-border/80 space-y-2">
+        <div className="px-3 py-2 flex items-center gap-2 text-xs text-muted-foreground mb-1">
+          <ShieldCheck className="h-4 w-4 text-primary" />
+          <span>Signed in as Sole Admin</span>
+        </div>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            setShowPasswordModal(true);
+            setMobileSidebarOpen(false);
+          }}
+          className="w-full justify-start gap-2.5 text-xs h-9"
+        >
+          <KeyRound className="h-4 w-4" />
+          Change Password
+        </Button>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleSignOut}
+          className="w-full justify-start gap-2.5 text-xs h-9 hover:text-destructive hover:border-destructive/40"
+        >
+          <LogOut className="h-4 w-4" />
+          Sign out
+        </Button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-background font-sans text-foreground flex flex-col md:flex-row">
+      <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-border bg-[#080808] sticky top-0 z-30">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 border border-primary/20 text-primary">
+            <UtensilsCrossed className="h-4 w-4" />
+          </div>
+          <span className="font-display text-xl text-primary tracking-wide">SMASH &amp; SHAKE</span>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
+          className="p-1.5 h-8 w-8 text-muted-foreground hover:text-foreground"
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
+      </div>
+
+      {mobileSidebarOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 md:hidden"
+          onClick={() => setMobileSidebarOpen(false)}
+        >
+          <aside
+            className="w-72 bg-[#090909] border-r border-border h-full p-5 flex flex-col justify-between"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {sidebarContent}
+          </aside>
+        </div>
+      )}
+
+      <aside className="hidden md:flex flex-col justify-between w-64 lg:w-72 border-r border-border bg-[#080808] p-5 h-screen sticky top-0 flex-shrink-0">
+        {sidebarContent}
+      </aside>
+
+      <main className="flex-1 min-w-0 p-5 sm:p-8 lg:p-10 space-y-8 overflow-y-auto">
+        <section className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 className="font-display text-3xl sm:text-4xl text-foreground tracking-wide">
+              Menu Dashboard
+            </h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Manage dishes, prices, categories, and live availability.
+            </p>
+          </div>
 
           <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowPasswordModal(true)}
-            className="gap-1.5 text-xs"
+            onClick={() => {
+              if (isFormOpen && !editingId) {
+                setIsFormOpen(false);
+              } else {
+                setEditingId(null);
+                setForm({
+                  ...empty,
+                  category:
+                    selectedCategoryTab !== "All"
+                      ? selectedCategoryTab
+                      : (availableCategories[0] ?? "Burgers"),
+                });
+                setIsFormOpen(true);
+              }
+            }}
+            className="gap-2 font-semibold shadow-md self-start sm:self-auto"
           >
-            <KeyRound className="h-3.5 w-3.5" />
-            Password
+            <Plus className="h-4 w-4" />
+            {isFormOpen && !editingId ? "Close Form" : "Add New Dish"}
           </Button>
+        </section>
 
-          <Button variant="outline" size="sm" onClick={handleSignOut} className="gap-1.5 text-xs">
-            <LogOut className="h-3.5 w-3.5" />
-            Sign out
-          </Button>
-        </div>
-      </header>
-
-      <div className="mx-auto max-w-7xl px-4 sm:px-8 py-8 space-y-8">
-        {/* Stats Row */}
         <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="rounded-xl border border-border bg-card p-5 shadow-sm flex items-center justify-between">
             <div>
               <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
-                Total Menu Items
+                Total Dishes
               </p>
               <p className="font-display text-4xl text-foreground mt-1">{allItems.length}</p>
             </div>
@@ -373,7 +497,7 @@ function Admin() {
           <div className="rounded-xl border border-border bg-card p-5 shadow-sm flex items-center justify-between">
             <div>
               <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
-                Active Currency
+                Menu Currency
               </p>
               <p className="font-display text-4xl text-primary mt-1">
                 {settingsQuery.data?.currency ?? "LKR"}
@@ -390,9 +514,7 @@ function Admin() {
           </div>
         </section>
 
-        {/* Action Header & Filter Controls */}
         <section className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-          {/* Category Tabs */}
           <div className="flex flex-wrap gap-1.5 p-1 rounded-xl bg-muted/60 border border-border/80">
             {["All", ...availableCategories].map((cat) => {
               const count =
@@ -413,7 +535,7 @@ function Admin() {
                   <span
                     className={`text-[10px] px-1.5 py-0.2 rounded-full ${
                       isActive
-                        ? "bg-black/20 text-primary-foreground"
+                        ? "bg-black/20 text-primary-foreground font-bold"
                         : "bg-card text-muted-foreground"
                     }`}
                   >
@@ -424,61 +546,37 @@ function Admin() {
             })}
           </div>
 
-          {/* Search & Add Button */}
-          <div className="flex items-center gap-2.5">
-            <div className="relative flex-1 md:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="text"
-                placeholder="Search items..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 h-9 text-xs"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
-
-            <Button
-              onClick={() => {
-                if (isFormOpen && !editingId) {
-                  setIsFormOpen(false);
-                } else {
-                  setEditingId(null);
-                  setForm({
-                    ...empty,
-                    category: availableCategories[0] ?? "Burgers",
-                  });
-                  setIsFormOpen(true);
-                }
-              }}
-              size="sm"
-              className="gap-1.5 text-xs font-semibold whitespace-nowrap"
-            >
-              <Plus className="h-4 w-4" />
-              {isFormOpen && !editingId ? "Close Form" : "Add Item"}
-            </Button>
+          <div className="relative md:w-72">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search dishes..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 h-9 text-xs"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
         </section>
 
-        {/* Collapsible Add / Edit Item Form Card */}
         {isFormOpen && (
           <section className="rounded-xl border border-primary/40 bg-card p-6 shadow-xl relative animate-in fade-in duration-200">
             <div className="flex items-center justify-between pb-4 mb-4 border-b border-border">
               <div>
                 <h2 className="font-display text-2xl text-primary">
-                  {editingId ? "Edit Menu Item" : "Create New Menu Item"}
+                  {editingId ? "Edit Menu Dish" : "Create New Menu Dish"}
                 </h2>
                 <p className="text-xs text-muted-foreground">
                   {editingId
-                    ? "Update pricing, description or category for this dish."
+                    ? "Update pricing, description, category, or order."
                     : "Fill in the details to publish a new dish to your live menu."}
                 </p>
               </div>
@@ -549,7 +647,7 @@ function Admin() {
 
               <div className="sm:col-span-1">
                 <label className="text-xs font-medium text-foreground block mb-1">
-                  Sort Order (Lower numbers show first)
+                  Sort Order (Lower shows first)
                 </label>
                 <Input
                   placeholder="0"
@@ -564,7 +662,7 @@ function Admin() {
                   Description
                 </label>
                 <Textarea
-                  placeholder="Ingredients, dietary notes, toppings..."
+                  placeholder="Ingredients, toppings, allergy notes..."
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                   rows={2}
@@ -575,7 +673,7 @@ function Admin() {
 
               <div className="flex gap-2 sm:col-span-full pt-2">
                 <Button type="submit" disabled={save.isPending}>
-                  {editingId ? "Save Changes" : "Publish Item"}
+                  {editingId ? "Save Changes" : "Publish Dish"}
                 </Button>
                 <Button type="button" variant="outline" onClick={handleCancelForm}>
                   Cancel
@@ -585,7 +683,6 @@ function Admin() {
           </section>
         )}
 
-        {/* Menu Items Cards Grid */}
         <section>
           {filteredItems.length === 0 ? (
             <div className="rounded-xl border border-dashed border-border p-12 text-center bg-card/40">
@@ -593,8 +690,8 @@ function Admin() {
               <h3 className="font-semibold text-lg text-foreground">No menu items found</h3>
               <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
                 {searchQuery
-                  ? `No items match "${searchQuery}". Try a different search query.`
-                  : "No items exist in this category yet. Click 'Add Item' to create one."}
+                  ? `No items match "${searchQuery}". Try a different search term.`
+                  : "No dishes exist in this category yet. Click 'Add New Dish' to create one."}
               </p>
               {!isFormOpen && (
                 <Button
@@ -613,12 +710,12 @@ function Admin() {
                   className="mt-4 gap-1.5 text-xs"
                 >
                   <Plus className="h-4 w-4" />
-                  Add First Item
+                  Add First Dish
                 </Button>
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
               {filteredItems.map((item: MenuItem) => {
                 const formattedPrice = formatPrice(item.price, settingsQuery.data);
                 return (
@@ -627,7 +724,6 @@ function Admin() {
                     className="group rounded-xl border border-border bg-card p-5 shadow-md hover:border-primary/50 transition-all flex flex-col justify-between"
                   >
                     <div>
-                      {/* Top Badges */}
                       <div className="flex items-center justify-between gap-2 mb-3">
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
                           {item.category}
@@ -637,7 +733,6 @@ function Admin() {
                         </span>
                       </div>
 
-                      {/* Item Name & Price */}
                       <div className="flex items-baseline justify-between gap-2">
                         <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors leading-tight">
                           {item.name}
@@ -647,13 +742,11 @@ function Admin() {
                         </span>
                       </div>
 
-                      {/* Description */}
                       <p className="text-xs text-muted-foreground mt-2 line-clamp-3 leading-relaxed">
                         {item.description || "No description provided."}
                       </p>
                     </div>
 
-                    {/* Card Actions Footer */}
                     <div className="mt-5 pt-3 border-t border-border/60 flex items-center justify-end gap-2">
                       <Button
                         size="sm"
@@ -682,9 +775,8 @@ function Admin() {
             </div>
           )}
         </section>
-      </div>
+      </main>
 
-      {/* Manage Categories Modal */}
       {showCategoriesModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4">
           <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-2xl space-y-5">
@@ -705,7 +797,6 @@ function Admin() {
               </button>
             </div>
 
-            {/* Create New Category Form */}
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -738,7 +829,6 @@ function Admin() {
               </p>
             )}
 
-            {/* Categories List */}
             <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
               <p className="text-xs uppercase font-medium text-muted-foreground tracking-wider mb-2">
                 Existing Categories ({availableCategories.length})
@@ -753,7 +843,7 @@ function Admin() {
                     <div className="flex items-center gap-2.5">
                       <span className="font-medium text-sm text-foreground">{catName}</span>
                       <span className="text-[11px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-mono">
-                        {count} {count === 1 ? "item" : "items"}
+                        {count} {count === 1 ? "dish" : "dishes"}
                       </span>
                     </div>
 
@@ -764,7 +854,7 @@ function Admin() {
                       onClick={() => {
                         if (
                           confirm(
-                            `Delete category "${catName}"? ${count > 0 ? `(Warning: ${count} items are currently using it)` : ""}`,
+                            `Delete category "${catName}"? ${count > 0 ? `(Warning: ${count} dishes are currently using it)` : ""}`,
                           )
                         ) {
                           deleteCategoryMutation.mutate(catName);
@@ -796,7 +886,6 @@ function Admin() {
         </div>
       )}
 
-      {/* Currency Modal */}
       {showCurrencyModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4">
           <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-2xl">
@@ -861,7 +950,6 @@ function Admin() {
         </div>
       )}
 
-      {/* Change Password Modal */}
       {showPasswordModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4">
           <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-2xl">
@@ -938,6 +1026,6 @@ function Admin() {
           </div>
         </div>
       )}
-    </main>
+    </div>
   );
 }
