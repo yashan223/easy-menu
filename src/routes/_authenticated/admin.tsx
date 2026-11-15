@@ -464,56 +464,6 @@ function Admin() {
           </Button>
         </section>
 
-        <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="rounded-xl border border-border bg-card p-5 shadow-sm flex items-center justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
-                Total Dishes
-              </p>
-              <p className="font-display text-4xl text-foreground mt-1">{allItems.length}</p>
-            </div>
-            <div className="p-3 rounded-xl bg-primary/10 border border-primary/20 text-primary">
-              <UtensilsCrossed className="h-6 w-6" />
-            </div>
-          </div>
-
-          <div
-            onClick={() => setShowCategoriesModal(true)}
-            className="rounded-xl border border-border bg-card p-5 shadow-sm flex items-center justify-between cursor-pointer hover:border-primary/50 transition-colors"
-          >
-            <div>
-              <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
-                Categories
-              </p>
-              <p className="font-display text-4xl text-foreground mt-1">
-                {availableCategories.length}
-              </p>
-            </div>
-            <div className="p-3 rounded-xl bg-secondary/10 border border-secondary/20 text-secondary">
-              <Tag className="h-6 w-6" />
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-border bg-card p-5 shadow-sm flex items-center justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
-                Menu Currency
-              </p>
-              <p className="font-display text-4xl text-primary mt-1">
-                {settingsQuery.data?.currency ?? "LKR"}
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowCurrencyModal(true)}
-              className="text-xs"
-            >
-              Switch
-            </Button>
-          </div>
-        </section>
-
         <section className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
           <div className="flex flex-wrap gap-1.5 p-1 rounded-xl bg-muted/60 border border-border/80">
             {["All", ...availableCategories].map((cat) => {
