@@ -7,7 +7,7 @@ import { formatPrice } from "@/lib/currency";
 
 const fetchMenu = createServerFn().handler(async () => {
   const rows = await sql`
-    SELECT id, name, description, price, category, sort_order, image_url, created_at
+    SELECT id, name, description, price, category, sort_order, created_at
     FROM menu_items
     ORDER BY sort_order ASC
   `;
@@ -118,40 +118,28 @@ function Index() {
                   </div>
 
                   {/* Menu Items List */}
-                  <div className="grid gap-4 sm:gap-6">
+                  <div className="grid gap-3 sm:gap-4">
                     {categoryItems.map((item: MenuItem) => {
                       const priceFormatted = formatPrice(item.price, settings);
                       return (
                         <article
                           key={item.id}
-                          className="group flex items-start gap-4 p-3 rounded-lg border border-border/40 hover:border-primary/40 bg-card/30 transition-colors"
+                          className="group py-2.5 sm:py-3 border-b border-border/30 hover:border-primary/40 transition-colors"
                         >
-                          {item.image_url && (
-                            <img
-                              src={item.image_url}
-                              alt={item.name}
-                              loading="lazy"
-                              width={80}
-                              height={80}
-                              className="w-16 h-16 sm:w-20 sm:h-20 rounded-md object-cover border border-primary/20 flex-shrink-0 shadow-md"
-                            />
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-baseline justify-between gap-2">
-                              <h3 className="font-display text-xl sm:text-2xl tracking-wide text-foreground group-hover:text-primary transition-colors truncate">
-                                {item.name}
-                              </h3>
-                              <div className="flex-1 border-b border-dotted border-border/80 mx-2 -translate-y-1 hidden sm:block" />
-                              <span className="font-mono text-base sm:text-lg font-semibold text-primary whitespace-nowrap">
-                                {priceFormatted}
-                              </span>
-                            </div>
-                            {item.description && (
-                              <p className="mt-1 text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                                {item.description}
-                              </p>
-                            )}
+                          <div className="flex items-baseline justify-between gap-2">
+                            <h3 className="font-display text-xl sm:text-2xl tracking-wide text-foreground group-hover:text-primary transition-colors">
+                              {item.name}
+                            </h3>
+                            <div className="flex-1 border-b border-dotted border-border/70 mx-2 -translate-y-1" />
+                            <span className="font-mono text-base sm:text-lg font-semibold text-primary whitespace-nowrap">
+                              {priceFormatted}
+                            </span>
                           </div>
+                          {item.description && (
+                            <p className="mt-1 text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                              {item.description}
+                            </p>
+                          )}
                         </article>
                       );
                     })}

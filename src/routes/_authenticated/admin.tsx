@@ -1,11 +1,11 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, useRef } from "react";
+import { useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { createServerFn } from "@tanstack/react-start";
 import { sql, type MenuItem } from "@/db";
-import { uploadToNeonStorage } from "@/lib/storage";
 import { authClient } from "@/lib/auth-client";
-import { getSettingsFn, updateSettingsFn, type AppSettings } from "@/lib/settings";
+import { getSettingsFn, updateSettingsFn } from "@/lib/settings";
 import { formatPrice } from "@/lib/currency";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,26 +18,16 @@ const empty = {
   price: "",
   category: "Burgers",
   sort_order: "0",
-  image_url: "",
 };
 
 const fetchMenuAdmin = createServerFn().handler(async () => {
   const rows = await sql`
-    SELECT id, name, description, price, category, sort_order, image_url, created_at
+    SELECT id, name, description, price, category, sort_order, created_at
     FROM menu_items
     ORDER BY category ASC, sort_order ASC
   `;
   return rows as unknown as MenuItem[];
 });
-
-const uploadImageFn = createServerFn({ method: "POST" })
-  .validator((data: { base64: string; fileName: string; contentType: string }) => data)
-  .handler(async ({ data }) => {
-    const base64Data = data.base64.replace(/^data:image\/\w+;base64,/, "");
-    const buffer = Buffer.from(base64Data, "base64");
-    const url = await uploadToNeonStorage(buffer, data.fileName, data.contentType);
-    return { url };
-  });
 
 const saveItem = createServerFn({ method: "POST" })
   .validator(
@@ -49,7 +39,6 @@ const saveItem = createServerFn({ method: "POST" })
         price: number;
         category: string;
         sort_order: number;
-        image_url: string | null;
       };
     }) => data,
   )
@@ -62,14 +51,13 @@ const saveItem = createServerFn({ method: "POST" })
             description = ${row.description},
             price = ${row.price},
             category = ${row.category},
-            sort_order = ${row.sort_order},
-            image_url = ${row.image_url}
+            sort_order = ${row.sort_order}
         WHERE id = ${id}
       `;
     } else {
       await sql`
-        INSERT INTO menu_items (name, description, price, category, sort_order, image_url)
-        VALUES (${row.name}, ${row.description}, ${row.price}, ${row.category}, ${row.sort_order}, ${row.image_url})
+        INSERT INTO menu_items (name, description, price, category, sort_order)
+        VALUES (${row.name}, ${row.description}, ${row.price}, ${row.category}, ${row.sort_order})
       `;
     }
   });
@@ -90,16 +78,15 @@ export const Route = createFileRoute("/_authenticated/admin")({
 function Admin() {
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState(empty);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string>("");
 
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [passwordStatus, setPasswordStatus] = useState<string | null>(null);
   const [changingPassword, setChangingPassword] = useState(false);
 
@@ -129,36 +116,6 @@ function Admin() {
       setShowCurrencyModal(false);
     },
   });
-
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const base64 = event.target?.result as string;
-      setPreviewUrl(base64);
-
-      try {
-        setUploading(true);
-        setError(null);
-        const res = await uploadImageFn({
-          data: {
-            base64,
-            fileName: file.name,
-            contentType: file.type || "image/jpeg",
-          },
-        });
-        setForm((prev) => ({ ...prev, image_url: res.url }));
-      } catch (err: unknown) {
-        console.error("Image upload failed:", err);
-        setError(err instanceof Error ? err.message : "Failed to upload image to Neon storage");
-      } finally {
-        setUploading(false);
-      }
-    };
-    reader.readAsDataURL(file);
-  }
 
   async function handleChangePassword(e: React.FormEvent) {
     e.preventDefault();
@@ -196,7 +153,6 @@ function Admin() {
         price: Number(form.price),
         category: form.category,
         sort_order: Number(form.sort_order) || 0,
-        image_url: form.image_url ? form.image_url.trim() : null,
       };
       await saveItem({ data: { ...(editingId ? { id: editingId } : {}), row } });
     },
@@ -204,8 +160,6 @@ function Admin() {
       setForm(empty);
       setEditingId(null);
       setError(null);
-      setPreviewUrl("");
-      if (fileInputRef.current) fileInputRef.current.value = "";
       qc.invalidateQueries({ queryKey: ["menu-admin"] });
       qc.invalidateQueries({ queryKey: ["menu"] });
     },
@@ -228,9 +182,7 @@ function Admin() {
       price: String(i.price),
       category: i.category,
       sort_order: String(i.sort_order),
-      image_url: i.image_url ?? "",
     });
-    setPreviewUrl(i.image_url ?? "");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -337,21 +289,49 @@ function Admin() {
           <div className="w-full max-w-sm rounded-lg border border-border bg-card p-6 shadow-xl">
             <h3 className="font-display text-2xl text-primary mb-4">Change Password</h3>
             <form onSubmit={handleChangePassword} className="space-y-3">
-              <Input
-                type="password"
-                placeholder="Current password"
-                required
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-              />
-              <Input
-                type="password"
-                placeholder="New password (min 6 chars)"
-                required
-                minLength={6}
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-              />
+              <div className="relative">
+                <Input
+                  type={showCurrentPassword ? "text" : "password"}
+                  placeholder="Current password"
+                  required
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrentPassword((prev) => !prev)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label={showCurrentPassword ? "Hide password" : "Show password"}
+                >
+                  {showCurrentPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+
+              <div className="relative">
+                <Input
+                  type={showNewPassword ? "text" : "password"}
+                  placeholder="New password (min 6 chars)"
+                  required
+                  minLength={6}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword((prev) => !prev)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label={showNewPassword ? "Hide password" : "Show password"}
+                >
+                  {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+
               {passwordStatus && (
                 <p
                   className={`text-xs ${passwordStatus.includes("success") ? "text-primary" : "text-destructive"}`}
@@ -425,45 +405,6 @@ function Admin() {
             onChange={(e) => setForm({ ...form, sort_order: e.target.value })}
           />
 
-          <div className="sm:col-span-2 space-y-2">
-            <label className="text-sm font-medium text-foreground">
-              Item Photo (stored in Neon Object Storage)
-            </label>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary/90 cursor-pointer"
-              onChange={handleFileChange}
-              disabled={uploading}
-            />
-            {uploading && (
-              <p className="text-xs text-primary animate-pulse">
-                Uploading image to Neon Object Storage...
-              </p>
-            )}
-            {previewUrl && (
-              <div className="relative mt-2 w-40">
-                <img
-                  src={previewUrl}
-                  alt="Preview"
-                  className="rounded-md aspect-[4/3] w-full object-cover border border-border"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPreviewUrl("");
-                    setForm((f) => ({ ...f, image_url: "" }));
-                    if (fileInputRef.current) fileInputRef.current.value = "";
-                  }}
-                  className="absolute -top-2 -right-2 rounded-full bg-destructive text-destructive-foreground w-5 h-5 flex items-center justify-center text-xs font-bold"
-                >
-                  ×
-                </button>
-              </div>
-            )}
-          </div>
-
           <Textarea
             className="sm:col-span-2"
             placeholder="Description"
@@ -472,7 +413,7 @@ function Admin() {
           />
           {error && <p className="text-sm text-destructive sm:col-span-2">{error}</p>}
           <div className="flex gap-2 sm:col-span-2">
-            <Button type="submit" disabled={save.isPending || uploading}>
+            <Button type="submit" disabled={save.isPending}>
               {editingId ? "Save changes" : "Add item"}
             </Button>
             {editingId && (
@@ -482,8 +423,6 @@ function Admin() {
                 onClick={() => {
                   setEditingId(null);
                   setForm(empty);
-                  setPreviewUrl("");
-                  if (fileInputRef.current) fileInputRef.current.value = "";
                 }}
               >
                 Cancel
@@ -497,23 +436,14 @@ function Admin() {
             const formattedPrice = formatPrice(i.price, settingsQuery.data);
             return (
               <li key={i.id} className="flex items-center justify-between gap-4 p-4">
-                <div className="flex items-center gap-3 min-w-0">
-                  {i.image_url && (
-                    <img
-                      src={i.image_url}
-                      alt={i.name}
-                      className="w-14 h-14 rounded-md object-cover border border-border flex-shrink-0"
-                    />
-                  )}
-                  <div className="min-w-0">
-                    <p className="font-semibold truncate">
-                      {i.name}{" "}
-                      <span className="text-sm font-normal text-muted-foreground">
-                        · {i.category}
-                      </span>
-                    </p>
-                    <p className="text-sm font-mono font-medium text-primary">{formattedPrice}</p>
-                  </div>
+                <div className="min-w-0">
+                  <p className="font-semibold truncate">
+                    {i.name}{" "}
+                    <span className="text-sm font-normal text-muted-foreground">
+                      · {i.category}
+                    </span>
+                  </p>
+                  <p className="text-sm font-mono font-medium text-primary">{formattedPrice}</p>
                 </div>
                 <div className="flex gap-2 flex-shrink-0">
                   <Button size="sm" variant="outline" onClick={() => edit(i)}>

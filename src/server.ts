@@ -3,7 +3,6 @@ import "./lib/error-capture";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { auth } from "./lib/auth";
-import { getFromNeonStorage } from "./lib/storage";
 import { sql } from "./db";
 
 type ServerEntry = {
@@ -68,26 +67,6 @@ export default {
           }
         }
         return await auth.handler(request);
-      }
-
-      if (url.pathname.startsWith("/api/storage/")) {
-        const key = url.pathname.replace("/api/storage/", "");
-        try {
-          const object = await getFromNeonStorage(key);
-          if (!object.Body) {
-            return new Response("Not found", { status: 404 });
-          }
-          const contentType = object.ContentType ?? "image/jpeg";
-          const headers = new Headers();
-          headers.set("Content-Type", contentType);
-          headers.set("Cache-Control", "public, max-age=31536000, immutable");
-
-          const stream = object.Body.transformToWebStream();
-          return new Response(stream, { status: 200, headers });
-        } catch (err: unknown) {
-          console.error("Storage fetch error:", err);
-          return new Response("Not found", { status: 404 });
-        }
       }
 
       const handler = await getServerEntry();

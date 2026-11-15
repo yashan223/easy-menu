@@ -7,7 +7,6 @@ export interface MenuItem {
   price: string | number;
   category: string;
   sort_order: number;
-  image_url: string | null;
   created_at?: string;
 }
 

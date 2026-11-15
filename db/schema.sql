@@ -5,7 +5,6 @@ CREATE TABLE IF NOT EXISTS menu_items (
   price numeric(8,2) NOT NULL,
   category text NOT NULL,
   sort_order int NOT NULL DEFAULT 0,
-  image_url text,
   created_at timestamptz NOT NULL DEFAULT now()
 );
 

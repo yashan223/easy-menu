@@ -5,6 +5,7 @@ Restaurant menu web app powered by TanStack Start, Neon Postgres & Better Auth.
 ## Quick Start
 
 1. **Install dependencies:**
+
    ```bash
    npm install
    ```
@@ -26,4 +27,3 @@ Restaurant menu web app powered by TanStack Start, Neon Postgres & Better Auth.
 - Go to `/auth` to create the admin account.
 - The 1st registered user becomes the admin; public sign-up is permanently locked immediately after.
 - Visit `/admin` to add menu items and toggle the currency (`LKR` / `USD`).
-
