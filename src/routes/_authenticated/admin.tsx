@@ -1,17 +1,37 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { useState, useMemo } from "react";
+import {
+  Eye,
+  EyeOff,
+  Plus,
+  Pencil,
+  Trash2,
+  UtensilsCrossed,
+  Tag,
+  Coins,
+  KeyRound,
+  LogOut,
+  ExternalLink,
+  Search,
+  X,
+  FolderPlus,
+} from "lucide-react";
 import { createServerFn } from "@tanstack/react-start";
 import { sql, type MenuItem } from "@/db";
 import { authClient } from "@/lib/auth-client";
 import { getSettingsFn, updateSettingsFn } from "@/lib/settings";
 import { formatPrice } from "@/lib/currency";
+import {
+  fetchCategoriesFn,
+  addCategoryFn,
+  deleteCategoryFn,
+  type Category,
+} from "@/lib/categories";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
-const CATEGORIES = ["Burgers", "Sides", "Cocktails"];
 const empty = {
   name: "",
   description: "",
@@ -70,7 +90,7 @@ const deleteItem = createServerFn({ method: "POST" })
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
-    meta: [{ title: "Menu admin — Smash & Shake" }, { name: "robots", content: "noindex" }],
+    meta: [{ title: "Menu Dashboard — Smash & Shake" }, { name: "robots", content: "noindex" }],
   }),
   component: Admin,
 });
@@ -80,7 +100,10 @@ function Admin() {
   const navigate = useNavigate();
   const [form, setForm] = useState(empty);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategoryTab, setSelectedCategoryTab] = useState("All");
 
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
@@ -93,9 +116,18 @@ function Admin() {
   const [showCurrencyModal, setShowCurrencyModal] = useState(false);
   const [selectedCurrency, setSelectedCurrency] = useState<"LKR" | "USD">("LKR");
 
+  const [showCategoriesModal, setShowCategoriesModal] = useState(false);
+  const [newCategoryInput, setNewCategoryInput] = useState("");
+  const [categoryError, setCategoryError] = useState<string | null>(null);
+
   const items = useQuery({
     queryKey: ["menu-admin"],
     queryFn: () => fetchMenuAdmin(),
+  });
+
+  const categoriesQuery = useQuery({
+    queryKey: ["categories"],
+    queryFn: () => fetchCategoriesFn(),
   });
 
   const settingsQuery = useQuery({
@@ -115,6 +147,25 @@ function Admin() {
       qc.invalidateQueries({ queryKey: ["settings"] });
       setShowCurrencyModal(false);
     },
+  });
+
+  const addCategoryMutation = useMutation({
+    mutationFn: (name: string) => addCategoryFn({ data: name }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["categories"] });
+      setNewCategoryInput("");
+      setCategoryError(null);
+    },
+    onError: (err: Error) => setCategoryError(err.message),
+  });
+
+  const deleteCategoryMutation = useMutation({
+    mutationFn: (name: string) => deleteCategoryFn({ data: name }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["categories"] });
+      setCategoryError(null);
+    },
+    onError: (err: Error) => setCategoryError(err.message),
   });
 
   async function handleChangePassword(e: React.FormEvent) {
@@ -159,6 +210,7 @@ function Admin() {
     onSuccess: () => {
       setForm(empty);
       setEditingId(null);
+      setIsFormOpen(false);
       setError(null);
       qc.invalidateQueries({ queryKey: ["menu-admin"] });
       qc.invalidateQueries({ queryKey: ["menu"] });
@@ -183,7 +235,15 @@ function Admin() {
       category: i.category,
       sort_order: String(i.sort_order),
     });
+    setIsFormOpen(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function handleCancelForm() {
+    setEditingId(null);
+    setForm(empty);
+    setIsFormOpen(false);
+    setError(null);
   }
 
   async function handleSignOut() {
@@ -192,37 +252,554 @@ function Admin() {
     navigate({ to: "/auth" });
   }
 
+  const allItems = useMemo(() => items.data ?? [], [items.data]);
+  const allCategories = useMemo(() => categoriesQuery.data ?? [], [categoriesQuery.data]);
+  const categoryNames = useMemo(() => allCategories.map((c: Category) => c.name), [allCategories]);
+
+  // If currently selected form category is not in list, default to first available
+  const availableCategories =
+    categoryNames.length > 0 ? categoryNames : ["Burgers", "Sides", "Cocktails"];
+
+  const filteredItems = useMemo(() => {
+    return allItems.filter((item) => {
+      const matchesCategory =
+        selectedCategoryTab === "All" || item.category === selectedCategoryTab;
+      const matchesSearch =
+        searchQuery.trim() === "" ||
+        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.description.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesCategory && matchesSearch;
+    });
+  }, [allItems, selectedCategoryTab, searchQuery]);
+
   return (
-    <main className="min-h-screen bg-background font-sans text-foreground">
-      <header className="flex flex-wrap items-center justify-between border-b border-border px-6 py-4 gap-3">
-        <h1 className="font-display text-4xl text-primary">Menu admin</h1>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" asChild>
-            <Link to="/">View menu</Link>
+    <main className="min-h-screen bg-background font-sans text-foreground pb-16">
+      {/* Top Navigation Bar */}
+      <header className="sticky top-0 z-40 border-b border-border/80 bg-background/90 backdrop-blur-md px-4 sm:px-8 py-3.5 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 border border-primary/20 text-primary">
+            <UtensilsCrossed className="h-5 w-5" />
+          </div>
+          <div>
+            <h1 className="font-display text-2xl sm:text-3xl tracking-wide text-primary leading-none">
+              SMASH &amp; SHAKE
+            </h1>
+            <p className="text-xs text-muted-foreground tracking-wider uppercase">Menu Dashboard</p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm" asChild className="gap-1.5 text-xs">
+            <Link to="/">
+              <ExternalLink className="h-3.5 w-3.5" />
+              Live Menu
+            </Link>
           </Button>
+
           <Button
             variant="outline"
+            size="sm"
+            onClick={() => setShowCategoriesModal(true)}
+            className="gap-1.5 text-xs"
+          >
+            <Tag className="h-3.5 w-3.5 text-secondary" />
+            Categories ({availableCategories.length})
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => {
               if (settingsQuery.data?.currency) {
                 setSelectedCurrency(settingsQuery.data.currency);
               }
               setShowCurrencyModal(true);
             }}
+            className="gap-1.5 text-xs"
           >
+            <Coins className="h-3.5 w-3.5 text-primary" />
             Currency ({settingsQuery.data?.currency ?? "LKR"})
           </Button>
-          <Button variant="outline" onClick={() => setShowPasswordModal(true)}>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowPasswordModal(true)}
+            className="gap-1.5 text-xs"
+          >
+            <KeyRound className="h-3.5 w-3.5" />
             Password
           </Button>
-          <Button variant="outline" onClick={handleSignOut}>
+
+          <Button variant="outline" size="sm" onClick={handleSignOut} className="gap-1.5 text-xs">
+            <LogOut className="h-3.5 w-3.5" />
             Sign out
           </Button>
         </div>
       </header>
 
+      <div className="mx-auto max-w-7xl px-4 sm:px-8 py-8 space-y-8">
+        {/* Stats Row */}
+        <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="rounded-xl border border-border bg-card p-5 shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+                Total Menu Items
+              </p>
+              <p className="font-display text-4xl text-foreground mt-1">{allItems.length}</p>
+            </div>
+            <div className="p-3 rounded-xl bg-primary/10 border border-primary/20 text-primary">
+              <UtensilsCrossed className="h-6 w-6" />
+            </div>
+          </div>
+
+          <div
+            onClick={() => setShowCategoriesModal(true)}
+            className="rounded-xl border border-border bg-card p-5 shadow-sm flex items-center justify-between cursor-pointer hover:border-primary/50 transition-colors"
+          >
+            <div>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+                Categories
+              </p>
+              <p className="font-display text-4xl text-foreground mt-1">
+                {availableCategories.length}
+              </p>
+            </div>
+            <div className="p-3 rounded-xl bg-secondary/10 border border-secondary/20 text-secondary">
+              <Tag className="h-6 w-6" />
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-border bg-card p-5 shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+                Active Currency
+              </p>
+              <p className="font-display text-4xl text-primary mt-1">
+                {settingsQuery.data?.currency ?? "LKR"}
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowCurrencyModal(true)}
+              className="text-xs"
+            >
+              Switch
+            </Button>
+          </div>
+        </section>
+
+        {/* Action Header & Filter Controls */}
+        <section className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+          {/* Category Tabs */}
+          <div className="flex flex-wrap gap-1.5 p-1 rounded-xl bg-muted/60 border border-border/80">
+            {["All", ...availableCategories].map((cat) => {
+              const count =
+                cat === "All" ? allItems.length : allItems.filter((i) => i.category === cat).length;
+              const isActive = selectedCategoryTab === cat;
+              return (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setSelectedCategoryTab(cat)}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 ${
+                    isActive
+                      ? "bg-primary text-primary-foreground font-semibold shadow-sm"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  }`}
+                >
+                  <span>{cat}</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                      isActive
+                        ? "bg-black/20 text-primary-foreground"
+                        : "bg-card text-muted-foreground"
+                    }`}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Search & Add Button */}
+          <div className="flex items-center gap-2.5">
+            <div className="relative flex-1 md:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Search items..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 h-9 text-xs"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+
+            <Button
+              onClick={() => {
+                if (isFormOpen && !editingId) {
+                  setIsFormOpen(false);
+                } else {
+                  setEditingId(null);
+                  setForm({
+                    ...empty,
+                    category: availableCategories[0] ?? "Burgers",
+                  });
+                  setIsFormOpen(true);
+                }
+              }}
+              size="sm"
+              className="gap-1.5 text-xs font-semibold whitespace-nowrap"
+            >
+              <Plus className="h-4 w-4" />
+              {isFormOpen && !editingId ? "Close Form" : "Add Item"}
+            </Button>
+          </div>
+        </section>
+
+        {/* Collapsible Add / Edit Item Form Card */}
+        {isFormOpen && (
+          <section className="rounded-xl border border-primary/40 bg-card p-6 shadow-xl relative animate-in fade-in duration-200">
+            <div className="flex items-center justify-between pb-4 mb-4 border-b border-border">
+              <div>
+                <h2 className="font-display text-2xl text-primary">
+                  {editingId ? "Edit Menu Item" : "Create New Menu Item"}
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  {editingId
+                    ? "Update pricing, description or category for this dish."
+                    : "Fill in the details to publish a new dish to your live menu."}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleCancelForm}
+                className="text-muted-foreground hover:text-foreground p-1 rounded-md"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                save.mutate();
+              }}
+              className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+            >
+              <div className="sm:col-span-2">
+                <label className="text-xs font-medium text-foreground block mb-1">Dish Name</label>
+                <Input
+                  placeholder="e.g. Classic Double Smash"
+                  required
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-medium text-foreground">Category</label>
+                  <button
+                    type="button"
+                    onClick={() => setShowCategoriesModal(true)}
+                    className="text-[11px] text-primary hover:underline flex items-center gap-0.5"
+                  >
+                    <Plus className="h-3 w-3" /> New
+                  </button>
+                </div>
+                <select
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  value={form.category}
+                  onChange={(e) => setForm({ ...form, category: e.target.value })}
+                >
+                  {availableCategories.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-foreground block mb-1">
+                  Price ({settingsQuery.data?.currency ?? "LKR"})
+                </label>
+                <Input
+                  placeholder="e.g. 1500"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  required
+                  value={form.price}
+                  onChange={(e) => setForm({ ...form, price: e.target.value })}
+                />
+              </div>
+
+              <div className="sm:col-span-1">
+                <label className="text-xs font-medium text-foreground block mb-1">
+                  Sort Order (Lower numbers show first)
+                </label>
+                <Input
+                  placeholder="0"
+                  type="number"
+                  value={form.sort_order}
+                  onChange={(e) => setForm({ ...form, sort_order: e.target.value })}
+                />
+              </div>
+
+              <div className="sm:col-span-2 lg:col-span-3">
+                <label className="text-xs font-medium text-foreground block mb-1">
+                  Description
+                </label>
+                <Textarea
+                  placeholder="Ingredients, dietary notes, toppings..."
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  rows={2}
+                />
+              </div>
+
+              {error && <p className="text-sm text-destructive sm:col-span-full">{error}</p>}
+
+              <div className="flex gap-2 sm:col-span-full pt-2">
+                <Button type="submit" disabled={save.isPending}>
+                  {editingId ? "Save Changes" : "Publish Item"}
+                </Button>
+                <Button type="button" variant="outline" onClick={handleCancelForm}>
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </section>
+        )}
+
+        {/* Menu Items Cards Grid */}
+        <section>
+          {filteredItems.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border p-12 text-center bg-card/40">
+              <UtensilsCrossed className="mx-auto h-10 w-10 text-muted-foreground/60 mb-3" />
+              <h3 className="font-semibold text-lg text-foreground">No menu items found</h3>
+              <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
+                {searchQuery
+                  ? `No items match "${searchQuery}". Try a different search query.`
+                  : "No items exist in this category yet. Click 'Add Item' to create one."}
+              </p>
+              {!isFormOpen && (
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setEditingId(null);
+                    setForm({
+                      ...empty,
+                      category:
+                        selectedCategoryTab !== "All"
+                          ? selectedCategoryTab
+                          : (availableCategories[0] ?? "Burgers"),
+                    });
+                    setIsFormOpen(true);
+                  }}
+                  className="mt-4 gap-1.5 text-xs"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add First Item
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {filteredItems.map((item: MenuItem) => {
+                const formattedPrice = formatPrice(item.price, settingsQuery.data);
+                return (
+                  <article
+                    key={item.id}
+                    className="group rounded-xl border border-border bg-card p-5 shadow-md hover:border-primary/50 transition-all flex flex-col justify-between"
+                  >
+                    <div>
+                      {/* Top Badges */}
+                      <div className="flex items-center justify-between gap-2 mb-3">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
+                          {item.category}
+                        </span>
+                        <span className="text-[11px] font-mono text-muted-foreground font-medium">
+                          Order #{item.sort_order}
+                        </span>
+                      </div>
+
+                      {/* Item Name & Price */}
+                      <div className="flex items-baseline justify-between gap-2">
+                        <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors leading-tight">
+                          {item.name}
+                        </h3>
+                        <span className="font-mono text-base font-bold text-primary whitespace-nowrap">
+                          {formattedPrice}
+                        </span>
+                      </div>
+
+                      {/* Description */}
+                      <p className="text-xs text-muted-foreground mt-2 line-clamp-3 leading-relaxed">
+                        {item.description || "No description provided."}
+                      </p>
+                    </div>
+
+                    {/* Card Actions Footer */}
+                    <div className="mt-5 pt-3 border-t border-border/60 flex items-center justify-end gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => edit(item)}
+                        className="gap-1.5 text-xs h-8"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                        Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => {
+                          if (confirm(`Delete ${item.name}?`)) remove.mutate(item.id);
+                        }}
+                        className="gap-1.5 text-xs h-8"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Delete
+                      </Button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      </div>
+
+      {/* Manage Categories Modal */}
+      {showCategoriesModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4">
+          <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-2xl space-y-5">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <div className="flex items-center gap-2">
+                <Tag className="h-5 w-5 text-primary" />
+                <h3 className="font-display text-2xl text-primary">Manage Categories</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCategoriesModal(false);
+                  setCategoryError(null);
+                }}
+                className="text-muted-foreground hover:text-foreground p-1"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Create New Category Form */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (newCategoryInput.trim()) {
+                  addCategoryMutation.mutate(newCategoryInput.trim());
+                }
+              }}
+              className="flex gap-2"
+            >
+              <Input
+                placeholder="New category name (e.g. Desserts)"
+                value={newCategoryInput}
+                onChange={(e) => setNewCategoryInput(e.target.value)}
+                required
+                className="h-10 text-sm"
+              />
+              <Button
+                type="submit"
+                disabled={addCategoryMutation.isPending || !newCategoryInput.trim()}
+                className="gap-1.5 text-xs whitespace-nowrap"
+              >
+                <FolderPlus className="h-4 w-4" />
+                Add
+              </Button>
+            </form>
+
+            {categoryError && (
+              <p className="text-xs text-destructive bg-destructive/10 p-2.5 rounded-lg border border-destructive/20">
+                {categoryError}
+              </p>
+            )}
+
+            {/* Categories List */}
+            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+              <p className="text-xs uppercase font-medium text-muted-foreground tracking-wider mb-2">
+                Existing Categories ({availableCategories.length})
+              </p>
+              {availableCategories.map((catName) => {
+                const count = allItems.filter((i) => i.category === catName).length;
+                return (
+                  <div
+                    key={catName}
+                    className="flex items-center justify-between p-3 rounded-lg border border-border bg-background"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span className="font-medium text-sm text-foreground">{catName}</span>
+                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-mono">
+                        {count} {count === 1 ? "item" : "items"}
+                      </span>
+                    </div>
+
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={deleteCategoryMutation.isPending}
+                      onClick={() => {
+                        if (
+                          confirm(
+                            `Delete category "${catName}"? ${count > 0 ? `(Warning: ${count} items are currently using it)` : ""}`,
+                          )
+                        ) {
+                          deleteCategoryMutation.mutate(catName);
+                        }
+                      }}
+                      className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                      title={count > 0 ? "Reassign items before deleting" : "Delete category"}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="pt-2 border-t border-border flex justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setShowCategoriesModal(false);
+                  setCategoryError(null);
+                }}
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Currency Modal */}
       {showCurrencyModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4">
-          <div className="w-full max-w-sm rounded-lg border border-border bg-card p-6 shadow-xl">
+          <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-2xl">
             <h3 className="font-display text-2xl text-primary mb-4">Currency Setting</h3>
             <form
               onSubmit={(e) => {
@@ -232,11 +809,11 @@ function Admin() {
               className="space-y-4"
             >
               <div>
-                <label className="text-xs text-muted-foreground block mb-2">
-                  Select Active Currency (Shown on Menu)
+                <label className="text-xs text-muted-foreground block mb-2 font-medium">
+                  Select Active Currency (Shown on Live Menu &amp; Cards)
                 </label>
                 <div className="space-y-2">
-                  <label className="flex items-center gap-3 p-3 rounded-md border border-border bg-background cursor-pointer hover:border-primary transition-colors">
+                  <label className="flex items-center gap-3 p-3 rounded-lg border border-border bg-background cursor-pointer hover:border-primary transition-colors">
                     <input
                       type="radio"
                       name="currency"
@@ -252,7 +829,7 @@ function Admin() {
                       </p>
                     </div>
                   </label>
-                  <label className="flex items-center gap-3 p-3 rounded-md border border-border bg-background cursor-pointer hover:border-primary transition-colors">
+                  <label className="flex items-center gap-3 p-3 rounded-lg border border-border bg-background cursor-pointer hover:border-primary transition-colors">
                     <input
                       type="radio"
                       name="currency"
@@ -284,9 +861,10 @@ function Admin() {
         </div>
       )}
 
+      {/* Change Password Modal */}
       {showPasswordModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4">
-          <div className="w-full max-w-sm rounded-lg border border-border bg-card p-6 shadow-xl">
+          <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-2xl">
             <h3 className="font-display text-2xl text-primary mb-4">Change Password</h3>
             <form onSubmit={handleChangePassword} className="space-y-3">
               <div className="relative">
@@ -360,110 +938,6 @@ function Admin() {
           </div>
         </div>
       )}
-
-      <div className="mx-auto max-w-4xl space-y-10 px-6 py-8">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            save.mutate();
-          }}
-          className="grid gap-4 rounded-lg border border-border bg-card p-6 sm:grid-cols-2"
-        >
-          <h2 className="font-display text-2xl sm:col-span-2">
-            {editingId ? "Edit item" : "Add new item"}
-          </h2>
-          <Input
-            placeholder="Name"
-            required
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-          />
-          <Input
-            placeholder={`Price (in ${settingsQuery.data?.currency ?? "LKR"})`}
-            type="number"
-            step="0.01"
-            min="0"
-            required
-            value={form.price}
-            onChange={(e) => setForm({ ...form, price: e.target.value })}
-          />
-          <select
-            className="h-10 rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            value={form.category}
-            onChange={(e) => setForm({ ...form, category: e.target.value })}
-          >
-            {CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-          <Input
-            placeholder="Order (lower shows first)"
-            type="number"
-            value={form.sort_order}
-            onChange={(e) => setForm({ ...form, sort_order: e.target.value })}
-          />
-
-          <Textarea
-            className="sm:col-span-2"
-            placeholder="Description"
-            value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
-          />
-          {error && <p className="text-sm text-destructive sm:col-span-2">{error}</p>}
-          <div className="flex gap-2 sm:col-span-2">
-            <Button type="submit" disabled={save.isPending}>
-              {editingId ? "Save changes" : "Add item"}
-            </Button>
-            {editingId && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setEditingId(null);
-                  setForm(empty);
-                }}
-              >
-                Cancel
-              </Button>
-            )}
-          </div>
-        </form>
-
-        <ul className="divide-y divide-border rounded-lg border border-border bg-card">
-          {items.data?.map((i: MenuItem) => {
-            const formattedPrice = formatPrice(i.price, settingsQuery.data);
-            return (
-              <li key={i.id} className="flex items-center justify-between gap-4 p-4">
-                <div className="min-w-0">
-                  <p className="font-semibold truncate">
-                    {i.name}{" "}
-                    <span className="text-sm font-normal text-muted-foreground">
-                      · {i.category}
-                    </span>
-                  </p>
-                  <p className="text-sm font-mono font-medium text-primary">{formattedPrice}</p>
-                </div>
-                <div className="flex gap-2 flex-shrink-0">
-                  <Button size="sm" variant="outline" onClick={() => edit(i)}>
-                    Edit
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => {
-                      if (confirm(`Delete ${i.name}?`)) remove.mutate(i.id);
-                    }}
-                  >
-                    Delete
-                  </Button>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
     </main>
   );
 }

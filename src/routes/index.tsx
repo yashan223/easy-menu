@@ -4,6 +4,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { sql, type MenuItem } from "@/db";
 import { getSettingsFn } from "@/lib/settings";
 import { formatPrice } from "@/lib/currency";
+import { fetchCategoriesFn } from "@/lib/categories";
 
 const fetchMenu = createServerFn().handler(async () => {
   const rows = await sql`
@@ -22,6 +23,11 @@ const menuQuery = queryOptions({
 const settingsQuery = queryOptions({
   queryKey: ["settings"],
   queryFn: () => getSettingsFn(),
+});
+
+const categoriesQuery = queryOptions({
+  queryKey: ["categories"],
+  queryFn: () => fetchCategoriesFn(),
 });
 
 export const Route = createFileRoute("/")({
@@ -45,19 +51,20 @@ export const Route = createFileRoute("/")({
     await Promise.all([
       context.queryClient.ensureQueryData(menuQuery),
       context.queryClient.ensureQueryData(settingsQuery),
+      context.queryClient.ensureQueryData(categoriesQuery),
     ]);
   },
   component: Index,
 });
 
-const DEFAULT_ORDER = ["Burgers", "Sides", "Cocktails"];
-
 function Index() {
   const { data } = useSuspenseQuery(menuQuery);
   const { data: settings } = useSuspenseQuery(settingsQuery);
+  const { data: categoryList } = useSuspenseQuery(categoriesQuery);
 
+  const categoryOrder = (categoryList ?? []).map((c) => c.name);
   const categories = Array.from(
-    new Set([...DEFAULT_ORDER, ...data.map((i: MenuItem) => i.category)]),
+    new Set([...categoryOrder, ...data.map((i: MenuItem) => i.category)]),
   ).filter((cat) => data.some((i: MenuItem) => i.category === cat));
 
   return (
