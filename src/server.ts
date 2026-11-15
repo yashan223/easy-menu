@@ -1,0 +1,104 @@
+import "./lib/error-capture";
+
+import { consumeLastCapturedError } from "./lib/error-capture";
+import { renderErrorPage } from "./lib/error-page";
+import { auth } from "./lib/auth";
+import { getFromNeonStorage } from "./lib/storage";
+import { sql } from "./db";
+
+type ServerEntry = {
+  fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
+};
+
+let serverEntryPromise: Promise<ServerEntry> | undefined;
+
+async function getServerEntry(): Promise<ServerEntry> {
+  if (!serverEntryPromise) {
+    serverEntryPromise = import("@tanstack/react-start/server-entry").then(
+      (m) => (m.default ?? m) as ServerEntry,
+    );
+  }
+  return serverEntryPromise;
+}
+
+async function normalizeCatastrophicSsrResponse(response: Response): Promise<Response> {
+  if (response.status < 500) return response;
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!contentType.includes("application/json")) return response;
+
+  const body = await response.clone().text();
+  if (!isH3SwallowedErrorBody(body)) return response;
+
+  console.error(consumeLastCapturedError() ?? new Error(`h3 swallowed SSR error: ${body}`));
+  return new Response(renderErrorPage(), {
+    status: 500,
+    headers: { "content-type": "text/html; charset=utf-8" },
+  });
+}
+
+function isH3SwallowedErrorBody(body: string): boolean {
+  try {
+    const payload = JSON.parse(body) as { unhandled?: unknown; message?: unknown };
+    return payload.unhandled === true && payload.message === "HTTPError";
+  } catch {
+    return false;
+  }
+}
+
+export default {
+  async fetch(request: Request, env: unknown, ctx: unknown) {
+    try {
+      const url = new URL(request.url);
+
+      if (url.pathname.startsWith("/api/auth")) {
+        if (url.pathname.includes("/sign-up")) {
+          const userRows = await sql`SELECT count(*)::int as c FROM "user"`;
+          const count = Number(userRows[0]?.["c"] ?? 0);
+          if (count > 0) {
+            return new Response(
+              JSON.stringify({
+                status: false,
+                message: "Registration is disabled. Only the initial admin can register.",
+              }),
+              {
+                status: 403,
+                headers: { "Content-Type": "application/json" },
+              },
+            );
+          }
+        }
+        return await auth.handler(request);
+      }
+
+      if (url.pathname.startsWith("/api/storage/")) {
+        const key = url.pathname.replace("/api/storage/", "");
+        try {
+          const object = await getFromNeonStorage(key);
+          if (!object.Body) {
+            return new Response("Not found", { status: 404 });
+          }
+          const contentType = object.ContentType ?? "image/jpeg";
+          const headers = new Headers();
+          headers.set("Content-Type", contentType);
+          headers.set("Cache-Control", "public, max-age=31536000, immutable");
+
+          const stream = object.Body.transformToWebStream();
+          return new Response(stream, { status: 200, headers });
+        } catch (err: unknown) {
+          console.error("Storage fetch error:", err);
+          return new Response("Not found", { status: 404 });
+        }
+      }
+
+      const handler = await getServerEntry();
+      const response = await handler.fetch(request, env, ctx);
+      return await normalizeCatastrophicSsrResponse(response);
+    } catch (error) {
+      console.error(error);
+      return new Response(renderErrorPage(), {
+        status: 500,
+        headers: { "content-type": "text/html; charset=utf-8" },
+      });
+    }
+  },
+};
