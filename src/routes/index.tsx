@@ -153,7 +153,7 @@ function Index() {
 
         <footer className="mt-16 pt-8 border-t border-primary/20 text-center space-y-2">
           <p className="text-xs uppercase tracking-widest text-muted-foreground">
-            All dishes freshly crafted to order
+            All items freshly crafted to order
           </p>
           <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
             <span>© Smash &amp; Shake</span>

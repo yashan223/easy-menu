@@ -414,7 +414,7 @@ function Admin() {
 
       {mobileSidebarOpen && (
         <div
-          className="fixed inset-0 z-50 bg-black/80 md:hidden"
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm md:hidden"
           onClick={() => setMobileSidebarOpen(false)}
         >
           <aside
@@ -437,30 +437,26 @@ function Admin() {
               Menu Dashboard
             </h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Manage dishes, prices, categories, and live availability.
+              Manage items, prices, categories, and live availability.
             </p>
           </div>
 
           <Button
             onClick={() => {
-              if (isFormOpen && !editingId) {
-                setIsFormOpen(false);
-              } else {
-                setEditingId(null);
-                setForm({
-                  ...empty,
-                  category:
-                    selectedCategoryTab !== "All"
-                      ? selectedCategoryTab
-                      : (availableCategories[0] ?? "Burgers"),
-                });
-                setIsFormOpen(true);
-              }
+              setEditingId(null);
+              setForm({
+                ...empty,
+                category:
+                  selectedCategoryTab !== "All"
+                    ? selectedCategoryTab
+                    : (availableCategories[0] ?? "Burgers"),
+              });
+              setIsFormOpen(true);
             }}
             className="gap-2 font-semibold shadow-md self-start sm:self-auto"
           >
             <Plus className="h-4 w-4" />
-            {isFormOpen && !editingId ? "Close Form" : "Add New Dish"}
+            Add Item
           </Button>
         </section>
 
@@ -500,7 +496,7 @@ function Admin() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               type="text"
-              placeholder="Search dishes..."
+              placeholder="Search items..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 h-9 text-xs"
@@ -517,122 +513,6 @@ function Admin() {
           </div>
         </section>
 
-        {isFormOpen && (
-          <section className="rounded-xl border border-primary/40 bg-card p-6 shadow-xl relative animate-in fade-in duration-200">
-            <div className="flex items-center justify-between pb-4 mb-4 border-b border-border">
-              <div>
-                <h2 className="font-display text-2xl text-primary">
-                  {editingId ? "Edit Menu Dish" : "Create New Menu Dish"}
-                </h2>
-                <p className="text-xs text-muted-foreground">
-                  {editingId
-                    ? "Update pricing, description, category, or order."
-                    : "Fill in the details to publish a new dish to your live menu."}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={handleCancelForm}
-                className="text-muted-foreground hover:text-foreground p-1 rounded-md"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                save.mutate();
-              }}
-              className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
-            >
-              <div className="sm:col-span-2">
-                <label className="text-xs font-medium text-foreground block mb-1">Dish Name</label>
-                <Input
-                  placeholder="e.g. Classic Double Smash"
-                  required
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-medium text-foreground">Category</label>
-                  <button
-                    type="button"
-                    onClick={() => setShowCategoriesModal(true)}
-                    className="text-[11px] text-primary hover:underline flex items-center gap-0.5"
-                  >
-                    <Plus className="h-3 w-3" /> New
-                  </button>
-                </div>
-                <select
-                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  value={form.category}
-                  onChange={(e) => setForm({ ...form, category: e.target.value })}
-                >
-                  {availableCategories.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-foreground block mb-1">
-                  Price ({settingsQuery.data?.currency ?? "LKR"})
-                </label>
-                <Input
-                  placeholder="e.g. 1500"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  required
-                  value={form.price}
-                  onChange={(e) => setForm({ ...form, price: e.target.value })}
-                />
-              </div>
-
-              <div className="sm:col-span-1">
-                <label className="text-xs font-medium text-foreground block mb-1">
-                  Sort Order (Lower shows first)
-                </label>
-                <Input
-                  placeholder="0"
-                  type="number"
-                  value={form.sort_order}
-                  onChange={(e) => setForm({ ...form, sort_order: e.target.value })}
-                />
-              </div>
-
-              <div className="sm:col-span-2 lg:col-span-3">
-                <label className="text-xs font-medium text-foreground block mb-1">
-                  Description
-                </label>
-                <Textarea
-                  placeholder="Ingredients, toppings, allergy notes..."
-                  value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  rows={2}
-                />
-              </div>
-
-              {error && <p className="text-sm text-destructive sm:col-span-full">{error}</p>}
-
-              <div className="flex gap-2 sm:col-span-full pt-2">
-                <Button type="submit" disabled={save.isPending}>
-                  {editingId ? "Save Changes" : "Publish Dish"}
-                </Button>
-                <Button type="button" variant="outline" onClick={handleCancelForm}>
-                  Cancel
-                </Button>
-              </div>
-            </form>
-          </section>
-        )}
-
         <section>
           {filteredItems.length === 0 ? (
             <div className="rounded-xl border border-dashed border-border p-12 text-center bg-card/40">
@@ -641,7 +521,7 @@ function Admin() {
               <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
                 {searchQuery
                   ? `No items match "${searchQuery}". Try a different search term.`
-                  : "No dishes exist in this category yet. Click 'Add New Dish' to create one."}
+                  : "No items exist in this category yet. Click 'Add Item' to create one."}
               </p>
               {!isFormOpen && (
                 <Button
@@ -660,7 +540,7 @@ function Admin() {
                   className="mt-4 gap-1.5 text-xs"
                 >
                   <Plus className="h-4 w-4" />
-                  Add First Dish
+                  Add First Item
                 </Button>
               )}
             </div>
@@ -727,8 +607,136 @@ function Admin() {
         </section>
       </main>
 
+      {isFormOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm px-4 py-6 overflow-y-auto animate-in fade-in duration-200"
+          onClick={handleCancelForm}
+        >
+          <div
+            className="w-full max-w-xl rounded-2xl border border-primary/30 bg-[#0c0c0c] p-6 sm:p-7 shadow-2xl relative my-auto animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-4 mb-5 border-b border-border">
+              <div>
+                <h2 className="font-display text-2xl sm:text-3xl text-primary tracking-wide">
+                  {editingId ? "Edit Item" : "Add New Item"}
+                </h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {editingId
+                    ? "Update pricing, description, category, or sort order."
+                    : "Fill in the details to publish a new item to your live menu."}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleCancelForm}
+                className="text-muted-foreground hover:text-foreground p-1 rounded-md transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                save.mutate();
+              }}
+              className="space-y-4"
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <label className="text-xs font-medium text-foreground block mb-1">
+                    Item Name
+                  </label>
+                  <Input
+                    placeholder="e.g. Classic Double Smash"
+                    required
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-medium text-foreground">Category</label>
+                    <button
+                      type="button"
+                      onClick={() => setShowCategoriesModal(true)}
+                      className="text-[11px] text-primary hover:underline flex items-center gap-0.5"
+                    >
+                      <Plus className="h-3 w-3" /> New
+                    </button>
+                  </div>
+                  <select
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    value={form.category}
+                    onChange={(e) => setForm({ ...form, category: e.target.value })}
+                  >
+                    {availableCategories.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-medium text-foreground block mb-1">
+                    Price ({settingsQuery.data?.currency ?? "LKR"})
+                  </label>
+                  <Input
+                    placeholder="e.g. 1500"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    required
+                    value={form.price}
+                    onChange={(e) => setForm({ ...form, price: e.target.value })}
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="text-xs font-medium text-foreground block mb-1">
+                    Sort Order (Lower shows first)
+                  </label>
+                  <Input
+                    placeholder="0"
+                    type="number"
+                    value={form.sort_order}
+                    onChange={(e) => setForm({ ...form, sort_order: e.target.value })}
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="text-xs font-medium text-foreground block mb-1">
+                    Description
+                  </label>
+                  <Textarea
+                    placeholder="Ingredients, toppings, allergy notes..."
+                    value={form.description}
+                    onChange={(e) => setForm({ ...form, description: e.target.value })}
+                    rows={3}
+                  />
+                </div>
+              </div>
+
+              {error && <p className="text-sm text-destructive">{error}</p>}
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+                <Button type="button" variant="outline" onClick={handleCancelForm}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={save.isPending}>
+                  {editingId ? "Save Changes" : "Add Item"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {showCategoriesModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm px-4">
           <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-2xl space-y-5">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <div className="flex items-center gap-2">
@@ -793,7 +801,7 @@ function Admin() {
                     <div className="flex items-center gap-2.5">
                       <span className="font-medium text-sm text-foreground">{catName}</span>
                       <span className="text-[11px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-mono">
-                        {count} {count === 1 ? "dish" : "dishes"}
+                        {count} {count === 1 ? "item" : "items"}
                       </span>
                     </div>
 
@@ -804,7 +812,7 @@ function Admin() {
                       onClick={() => {
                         if (
                           confirm(
-                            `Delete category "${catName}"? ${count > 0 ? `(Warning: ${count} dishes are currently using it)` : ""}`,
+                            `Delete category "${catName}"? ${count > 0 ? `(Warning: ${count} items are currently using it)` : ""}`,
                           )
                         ) {
                           deleteCategoryMutation.mutate(catName);
@@ -837,7 +845,7 @@ function Admin() {
       )}
 
       {showCurrencyModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm px-4">
           <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-2xl">
             <h3 className="font-display text-2xl text-primary mb-4">Currency Setting</h3>
             <form
@@ -901,7 +909,7 @@ function Admin() {
       )}
 
       {showPasswordModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm px-4">
           <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-2xl">
             <h3 className="font-display text-2xl text-primary mb-4">Change Password</h3>
             <form onSubmit={handleChangePassword} className="space-y-3">
