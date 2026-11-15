@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
@@ -5,6 +6,8 @@ import { sql, type MenuItem } from "@/db";
 import { getSettingsFn } from "@/lib/settings";
 import { formatPrice } from "@/lib/currency";
 import { fetchCategoriesFn } from "@/lib/categories";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const fetchMenu = createServerFn().handler(async () => {
   const rows = await sql`
@@ -61,11 +64,20 @@ function Index() {
   const { data } = useSuspenseQuery(menuQuery);
   const { data: settings } = useSuspenseQuery(settingsQuery);
   const { data: categoryList } = useSuspenseQuery(categoriesQuery);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const categoryOrder = (categoryList ?? []).map((c) => c.name);
   const categories = Array.from(
     new Set([...categoryOrder, ...data.map((i: MenuItem) => i.category)]),
   ).filter((cat) => data.some((i: MenuItem) => i.category === cat));
+
+  const CATEGORIES_PER_PAGE = 3;
+  const totalPages = Math.max(1, Math.ceil(categories.length / CATEGORIES_PER_PAGE));
+  const safePage = Math.min(currentPage, totalPages);
+  const currentCategories = categories.slice(
+    (safePage - 1) * CATEGORIES_PER_PAGE,
+    safePage * CATEGORIES_PER_PAGE,
+  );
 
   return (
     <main className="min-h-screen bg-black text-foreground font-sans py-6 sm:py-12 px-3 sm:px-6 flex justify-center items-start">
@@ -107,7 +119,7 @@ function Index() {
           </div>
         ) : (
           <div className="space-y-12 sm:space-y-16">
-            {categories.map((cat) => {
+            {currentCategories.map((cat) => {
               const categoryItems = data.filter((i: MenuItem) => i.category === cat);
               return (
                 <section key={cat} className="relative">
@@ -148,6 +160,61 @@ function Index() {
                 </section>
               );
             })}
+
+            {totalPages > 1 && (
+              <nav className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-10 border-t border-primary/20">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={safePage === 1}
+                  onClick={() => {
+                    setCurrentPage((p) => Math.max(1, p - 1));
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                  className="gap-1.5 text-xs text-primary border-primary/30 hover:bg-primary/10 w-full sm:w-auto"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Previous Page
+                </Button>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-xs uppercase tracking-wider text-muted-foreground mr-1">
+                    Page {safePage} of {totalPages}
+                  </span>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => {
+                        setCurrentPage(p);
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      }}
+                      className={`h-8 w-8 rounded-lg text-xs font-mono font-bold transition-all ${
+                        safePage === p
+                          ? "bg-primary text-primary-foreground shadow"
+                          : "border border-border text-muted-foreground hover:text-foreground hover:border-primary/40"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={safePage === totalPages}
+                  onClick={() => {
+                    setCurrentPage((p) => Math.min(totalPages, p + 1));
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                  className="gap-1.5 text-xs text-primary border-primary/30 hover:bg-primary/10 w-full sm:w-auto"
+                >
+                  Next Page
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </nav>
+            )}
           </div>
         )}
 

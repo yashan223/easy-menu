@@ -649,7 +649,7 @@ function Admin() {
                     Item Name
                   </label>
                   <Input
-                    placeholder="e.g. Classic Double Smash"
+                    placeholder="Item name"
                     required
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -685,7 +685,7 @@ function Admin() {
                     Price ({settingsQuery.data?.currency ?? "LKR"})
                   </label>
                   <Input
-                    placeholder="e.g. 1500"
+                    placeholder="0.00"
                     type="number"
                     step="0.01"
                     min="0"
@@ -765,7 +765,7 @@ function Admin() {
               className="flex gap-2"
             >
               <Input
-                placeholder="New category name (e.g. Desserts)"
+                placeholder="New category name"
                 value={newCategoryInput}
                 onChange={(e) => setNewCategoryInput(e.target.value)}
                 required
@@ -871,9 +871,7 @@ function Admin() {
                     />
                     <div>
                       <span className="font-medium text-sm">LKR (Default)</span>
-                      <p className="text-xs text-muted-foreground">
-                        Sri Lankan Rupee (e.g. LKR 1,500.00)
-                      </p>
+                      <p className="text-xs text-muted-foreground">Sri Lankan Rupee</p>
                     </div>
                   </label>
                   <label className="flex items-center gap-3 p-3 rounded-lg border border-border bg-background cursor-pointer hover:border-primary transition-colors">
@@ -887,9 +885,7 @@ function Admin() {
                     />
                     <div>
                       <span className="font-medium text-sm">USD</span>
-                      <p className="text-xs text-muted-foreground">
-                        United States Dollar (e.g. $12.50)
-                      </p>
+                      <p className="text-xs text-muted-foreground">United States Dollar</p>
                     </div>
                   </label>
                 </div>
